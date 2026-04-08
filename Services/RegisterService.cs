@@ -12,26 +12,27 @@ public class RegisterService : IRegisterService
     private readonly ITelegramBotClient _telegramBotClient;
     private readonly ITopUserService _topUserService;
     private readonly IQuestService _questService;
+    private readonly ILocalizationService _localizationService;
 
     public RegisterService(BotDbContext db, IAuthService authService, 
         ITelegramBotClient telegramBotClient, ITopUserService topUserService,
-        IQuestService questService)
+        IQuestService questService, ILocalizationService localizationService)
     {
         _db = db;
         _authService = authService;
         _telegramBotClient = telegramBotClient;
         _topUserService = topUserService;
         _questService = questService;
+        _localizationService = localizationService;
     }
 
     public async Task<(bool Success, string Message)> RegisterUserAsync(
         long telegramId, string username, string password, string walletAddress, string language, string? referralCode = null)
     {
+        var normalizedCode = _localizationService.NormalizeCode(language);
+        var normalizedDisplayName = _localizationService.NormalizeDisplayName(language);
         var existingUser = await _db.Users
             .FirstOrDefaultAsync(u => u.TelegramId == telegramId);
-
-        // ВИПРАВЛЕННЯ: використовуємо мову з параметра для нових користувачів
-        var lang = existingUser?.Language ?? language;
 
         // 🔹 Якщо юзер існує і ще не завершив реєстрацію
         if (existingUser != null && existingUser.IsTemporary)
@@ -40,7 +41,8 @@ public class RegisterService : IRegisterService
             existingUser.PasswordHash = _authService.HashPassword(password);
             existingUser.WalletAddress = walletAddress;
             existingUser.IsAuthorized = true;
-            existingUser.Language = language;
+            existingUser.PreferredLanguage = normalizedCode;
+            existingUser.Language = normalizedDisplayName;
             existingUser.IsTemporary = false;
 
             // ✅ Якщо був PendingReferralCode – обробляємо
@@ -51,7 +53,7 @@ public class RegisterService : IRegisterService
             }
 
             await _db.SaveChangesAsync();
-            
+            return (true, _localizationService.GetText(normalizedCode, "registration.success"));
         }
 
         // 🔹 Якщо користувача немає — створюємо нового
@@ -66,7 +68,8 @@ public class RegisterService : IRegisterService
                 IsAuthorized = true,
                 Role = UserRole.User,
                 RegistrationDate = DateTime.UtcNow,
-                Language = language
+                PreferredLanguage = normalizedCode,
+                Language = normalizedDisplayName
             };
 
             if (!string.IsNullOrEmpty(referralCode))
@@ -78,9 +81,7 @@ public class RegisterService : IRegisterService
             await _db.SaveChangesAsync();
             
             // ВИПРАВЛЕННЯ: використовуємо мову нового користувача
-            return (true, language == "English"
-                ? "✅ Registration successful! You can now use the bot."
-                : "✅ Registration safal raha! Ab aap bot ka istemal kar sakte hain.");
+            return (true, _localizationService.GetText(normalizedCode, "registration.success"));
         }
 
         return (false, "❌ Something went wrong.");
@@ -105,13 +106,10 @@ public class RegisterService : IRegisterService
             
 
             // ВИПРАВЛЕННЯ: уникнення фіксованої суми $5
-            string message = referrer.Language == "English"
-                ? $"🎉 New user {newUser.Username} registered using your referral link!\n\n" +
-                  $"💰 You will earn 10% from their investment profits!\n" +
-                  $"🔥 Keep inviting more friends to earn more!"
-                : $"🎉 Naya user {newUser.Username} aapke referral link se register hua!\n\n" +
-                  $"💰 Aapko unke investment profits ka 10% milega!\n" +
-                  $"🔥 Zyada kamane ke liye aur dosto ko invite karein!";
+                        string message = _localizationService.GetText(
+                                referrer.PreferredLanguage ?? referrer.Language,
+                                "registration.referral",
+                                newUser.Username);
 
             await _telegramBotClient.SendMessage(referrer.TelegramId, message);
         }

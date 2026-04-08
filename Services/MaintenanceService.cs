@@ -10,11 +10,16 @@ public class MaintenanceService : IMaintenanceService
 {
     private readonly ITelegramBotClient _botClient;
     private readonly BotDbContext _context;
+    private readonly ILocalizationService _localizationService;
 
-    public MaintenanceService(ITelegramBotClient botClient, BotDbContext context)
+    public MaintenanceService(
+        ITelegramBotClient botClient,
+        BotDbContext context,
+        ILocalizationService localizationService)
     {
         _botClient = botClient;
         _context = context;
+        _localizationService = localizationService;
     }
 
     public async Task NotifyMaintenanceStartAsync(string reason)
@@ -78,15 +83,11 @@ public class MaintenanceService : IMaintenanceService
 
     private string GetMaintenanceMessage(string lang, string reason)
     {
-        return lang == "Hinglish"
-            ? $"🔧 <b>Technical Maintenance</b>\n\nBot temporarily unavailable hai.\n<b>Reason:</b> {reason}\n\nPlease wait karo!"
-            : $"🔧 <b>Technical Maintenance</b>\n\nBot temporarily unavailable.\n<b>Reason:</b> {reason}\n\nPlease wait!";
+        return _localizationService.GetText(lang, "maintenance.start", reason);
     }
 
     private string GetRestoredMessage(string lang)
     {
-        return lang == "Hinglish"
-            ? "✅ <b>Bot Restored</b>\n\nBot ab available hai and working normally!\nThank you for waiting!"
-            : "✅ <b>Bot Restored</b>\n\nBot is now available and working normally!\nThank you for waiting!";
+        return _localizationService.GetText(lang, "maintenance.end");
     }
 }

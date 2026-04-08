@@ -12,15 +12,18 @@ public class DelayCompensationService : IDelayCompensationService
     private readonly ITelegramBotClient _botClient;
     private readonly BotDbContext _context;
     private readonly ILogger<DelayCompensationService> _logger;
+    private readonly ILocalizationService _localizationService;
 
     public DelayCompensationService(
         ITelegramBotClient botClient,
         BotDbContext context,
-        ILogger<DelayCompensationService> logger)
+        ILogger<DelayCompensationService> logger,
+        ILocalizationService localizationService)
     {
         _botClient = botClient;
         _context = context;
         _logger = logger;
+        _localizationService = localizationService;
     }
 
     public async Task NotifyDelayAndCompensateAsync()
@@ -103,51 +106,8 @@ public class DelayCompensationService : IDelayCompensationService
 
     private string GetDelayMessage(string lang, string? customReason = null)
     {
-        string reason = customReason ?? "market conditions ke karan";
-
-        return lang == "Hinglish"
-            ? GetHinglishMessage(reason)
-            : GetEnglishMessage(reason);
-    }
-
-    private string GetHinglishMessage(string reason)
-    {
-        return $@"<b>📢 Important Update</b>
-
-Dear Trader,
-
-Market {reason} exchange se payouts me 5 days ki delay ho rahi hai. Yeh situation temporary hai aur hum issue resolve karne me lage huye hain.
-
-<b>✅ Aapke patience ke liye:</b>
-Hum aapke account me <b>3 USDT bonus</b> add kar diye hain! Yeh amount aap trading ya withdrawal ke liye use kar sakte hain.
-
-🙏 Aapke support ke liye dhanyavaad!
-
-<b>🔜 Updates:</b>
-Jaisi hi situation normal hogi, hum aapko notify kar denge.
-
-—
-Shanti Team ❤️";
-    }
-
-    private string GetEnglishMessage(string reason)
-    {
-        return $@"<b>📢 Important Update</b>
-
-Dear Trader,
-
-Due to {reason}, there is a 5-day delay in payouts from the exchange we work with. This is a temporary situation and we are working to resolve the issue.
-
-<b>✅ For your patience:</b>
-We have added <b>3 USDT bonus</b> to your account! You can use this amount for trading or withdrawal.
-
-🙏 Thank you for your understanding and support!
-
-<b>🔜 Updates:</b>
-We will notify you as soon as the situation returns to normal.
-
-—
-Shanti Team ❤️";
+        string reason = customReason ?? _localizationService.GetText(lang, "delay.defaultReason");
+        return _localizationService.GetText(lang, "delay.message", reason);
     }
 
     public async Task<int> GetAffectedUsersCountAsync()

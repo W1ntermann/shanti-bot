@@ -27,11 +27,9 @@ public static class InvestmentHelper
     
     private static decimal RandomDecimal(decimal min, decimal max)
     {
-        // Отримаємо випадкове число від 0 до 1
+
         double sample = _random.NextDouble();
-        // Приведемо до діапазону min-max
         decimal scaled = min + (decimal)sample * (max - min);
-        // Округлимо до 2 знаків після коми
         return Math.Round(scaled, 2);
     }
 }

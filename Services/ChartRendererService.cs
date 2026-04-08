@@ -23,9 +23,11 @@ public class ChartRendererService : IChartRendererService
     private readonly Font _titleFont;
     private readonly Font _metricsFont;
     private readonly Font _smallFont;
+    private readonly ILocalizationService _localizationService;
 
-    public ChartRendererService()
+    public ChartRendererService(ILocalizationService localizationService)
     {
+        _localizationService = localizationService;
         var fontFamily = SystemFonts.TryGet("Arial", out FontFamily arial)
             ? arial
             : SystemFonts.Families.First();
@@ -208,6 +210,7 @@ public class ChartRendererService : IChartRendererService
 
     private void DrawProfitInfo(IImageProcessingContext ctx, TradingMetrics metrics, string language)
     {
+        var normalizedLanguage = _localizationService.NormalizeCode(language);
         var backgroundColor = new Rgba32(25, 25, 40, 200);
         var textColor = new Rgba32(255, 255, 255, 255);
         var profitColor = new Rgba32(76, 175, 80, 255);
@@ -218,7 +221,7 @@ public class ChartRendererService : IChartRendererService
         ctx.Draw(Pens.Solid(profitColor, 1), infoPanelRect);
 
         // Заголовок
-        string title = language == "en" ? "💰 Projected Balance" : "💰 Expected Balance";
+        string title = _localizationService.GetText(normalizedLanguage, "chart.title");
         ctx.DrawText(
             new RichTextOptions(_titleFont) { Origin = new PointF(ChartWidth - 310, 20) },
             title,
@@ -230,8 +233,8 @@ public class ChartRendererService : IChartRendererService
         decimal profitPercent = metrics.ChangePercent;
         decimal newBalance = metrics.CurrentPrice;
 
-        string profitLabel = language == "en" ? "Profit:" : "Profit:";
-        string balanceLabel = language == "en" ? "New Balance:" : "New Balance:";
+        string profitLabel = _localizationService.GetText(normalizedLanguage, "chart.profit");
+        string balanceLabel = _localizationService.GetText(normalizedLanguage, "chart.balance");
 
         ctx.DrawText(
             new RichTextOptions(_metricsFont) { Origin = new PointF(ChartWidth - 310, 50) },
@@ -246,9 +249,7 @@ public class ChartRendererService : IChartRendererService
         );
 
         // Легенда внизу
-        string legend = language == "en" 
-            ? "📈 Green candles represent your profit growth trajectory"
-            : "📈 Green candles show your profit growth";
+        string legend = _localizationService.GetText(normalizedLanguage, "chart.legend");
         
         ctx.DrawText(
             new RichTextOptions(_smallFont) { Origin = new PointF(Padding, ChartHeight - 20) },

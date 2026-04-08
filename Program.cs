@@ -104,6 +104,7 @@ public class Program
     private static void ConfigureApplicationServices(IServiceCollection services)
     {
         // Core services
+        services.AddSingleton<ILocalizationService, LocalizationService>();
         services.AddScoped<IManageService, ManageService>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IOperationService, OperationService>();
@@ -217,7 +218,7 @@ public class Program
         try
         {
             Console.WriteLine("\n" + new string('=', 50));
-            Console.WriteLine("🤖 Shanti AI Trading Platform");
+            Console.WriteLine("🤖 StarQuantum.AI Trading Platform");
             Console.WriteLine("🚀 Telegram Bot запускається...");
             Console.WriteLine(new string('=', 50) + "\n");
             

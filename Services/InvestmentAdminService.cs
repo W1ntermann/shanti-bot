@@ -11,17 +11,36 @@ public class InvestmentAdminService : IInvestmentAdminService
     private readonly ITelegramBotClient _bot;
     private readonly BotDbContext _db;
     private readonly IManageService _manage;
+    private readonly ILocalizationService _localizationService;
 
-    public InvestmentAdminService(ITelegramBotClient bot, BotDbContext db, IManageService manage)
+    public InvestmentAdminService(ITelegramBotClient bot, BotDbContext db, IManageService manage, ILocalizationService localizationService)
     {
         _bot = bot;
         _db = db; 
         _manage = manage;
+        _localizationService = localizationService;
+    }
+
+    private string T(string? language, string english, string hinglish, string russian, string farsi, string arabic, string chinese)
+    {
+        var normalized = _localizationService.NormalizeCode(language);
+        var text = normalized switch
+        {
+            BotLanguageCodes.Hinglish => hinglish,
+            BotLanguageCodes.Russian => russian,
+            BotLanguageCodes.Farsi => farsi,
+            BotLanguageCodes.Arabic => arabic,
+            BotLanguageCodes.SimplifiedChinese => chinese,
+            _ => english
+        };
+
+        return _localizationService.FormatText(normalized, text);
     }
 
     public async Task ShowAllUsersSummaryAsync(long adminChatId)
     {
-        var lang = (await _manage.GetUserByTelegramIdAsync(adminChatId))?.Language ?? "English";
+        var admin = await _manage.GetUserByTelegramIdAsync(adminChatId);
+        var lang = admin?.PreferredLanguage ?? admin?.Language ?? BotLanguageCodes.English;
 
         var data = await _db.Users
             .Include(u => u.Investments)
@@ -40,7 +59,7 @@ public class InvestmentAdminService : IInvestmentAdminService
         if (!data.Any())
         {
             await _bot.SendMessage(adminChatId,
-                lang == "English" ? "❌ No active investments found." : "❌ Koi sakriya nivesh nahi mila.");
+                T(lang, "❌ No active investments found.", "❌ Koi sakriya nivesh nahi mila.", "❌ Активные инвестиции не найдены.", "❌ هیچ سرمایه گذاری فعالی پیدا نشد.", "❌ لم يتم العثور على استثمارات نشطة.", "❌ 未找到活跃投资。"));
             return;
         }
 
@@ -65,7 +84,7 @@ public class InvestmentAdminService : IInvestmentAdminService
 
         // Заголовок з загальною статистикою
         var header = new StringBuilder();
-        if (lang == "English")
+        if (_localizationService.IsEnglish(lang))
         {
             header.AppendLine($"📊 <b>All Users - Active Investments Summary</b>");
             header.AppendLine($"👥 Total Users: <b>{totalUsers}</b>");
@@ -108,7 +127,7 @@ public class InvestmentAdminService : IInvestmentAdminService
 
             // Інформація про користувача
             var userInfo = new StringBuilder();
-            if (lang == "English")
+            if (_localizationService.IsEnglish(lang))
             {
                 userInfo.AppendLine($"\n👤 <b>User: {displayName}</b>");
                 userInfo.AppendLine($"🆔 <b>Telegram ID: {user.TelegramId}</b>");
@@ -141,7 +160,7 @@ public class InvestmentAdminService : IInvestmentAdminService
                     decimal expectedTotalProfit = investment.Amount * (investment.InterestPercent / 100m);
                     decimal expectedRemainingProfit = expectedTotalProfit - investment.AccumulatedProfit;
 
-                    string investmentText = lang == "English"
+                    string investmentText = _localizationService.IsEnglish(lang)
                         ? $"📊 <b>Investment #{investment.Id}</b>\n" +
                           $"💵 Amount: <b>{investment.Amount:0.00} USDT</b>\n" +
                           $"📈 Interest: <b>{investment.InterestPercent:0.##}%</b>\n" +
@@ -165,14 +184,15 @@ public class InvestmentAdminService : IInvestmentAdminService
             else
             {
                 await _bot.SendMessage(adminChatId,
-                    lang == "English" ? "No active investments." : "Koi sakriya nivesh nahi.");
+                    T(lang, "No active investments.", "Koi sakriya nivesh nahi.", "Нет активных инвестиций.", "هیچ سرمایه گذاری فعالی وجود ندارد.", "لا توجد استثمارات نشطة.", "没有活跃投资。"));
             }
         }
     }
 
     public async Task ShowUserInvestmentsAsync(long adminChatId, long targetTelegramId)
     {
-        var lang = (await _manage.GetUserByTelegramIdAsync(adminChatId))?.Language ?? "English";
+        var adminUser = await _manage.GetUserByTelegramIdAsync(adminChatId);
+        var lang = adminUser?.PreferredLanguage ?? adminUser?.Language ?? BotLanguageCodes.English;
 
         var user = await _db.Users
             .Include(u => u.Investments)
@@ -181,7 +201,7 @@ public class InvestmentAdminService : IInvestmentAdminService
         if (user == null)
         {
             await _bot.SendMessage(adminChatId,
-                lang == "English" ? "❌ User not found." : "❌ Upyogakarta nahi mila.");
+                T(lang, "❌ User not found.", "❌ Upyogakarta nahi mila.", "❌ Пользователь не найден.", "❌ کاربر پیدا نشد.", "❌ لم يتم العثور على المستخدم.", "❌ 未找到用户。"));
             return;
         }
 
@@ -200,7 +220,7 @@ public class InvestmentAdminService : IInvestmentAdminService
 
         // Заголовок з інформацією про користувача
         var header = new StringBuilder();
-        if (lang == "English")
+        if (_localizationService.IsEnglish(lang))
         {
             header.AppendLine($"👤 <b>User Investments: {displayName}</b>");
             header.AppendLine($"🆔 <b>Telegram ID: {user.TelegramId}</b>");
@@ -247,7 +267,7 @@ public class InvestmentAdminService : IInvestmentAdminService
                     expectedProfitTextHindi = $"\n📈 Aakankshit labh: <b>{expectedRemainingProfit:0.00} USDT</b>";
                 }
 
-                string investmentText = lang == "English"
+                string investmentText = _localizationService.IsEnglish(lang)
                     ? $"\n📊 <b>Investment #{investment.Id}</b>\n" +
                       $"💵 Amount: <b>{investment.Amount:0.00} USDT</b>\n" +
                       $"📈 Interest: <b>{investment.InterestPercent:0.##}%</b>\n" +
@@ -271,7 +291,7 @@ public class InvestmentAdminService : IInvestmentAdminService
         else
         {
             await _bot.SendMessage(adminChatId,
-                lang == "English" ? "No investments found." : "Koi nivesh nahi mile.");
+                T(lang, "No investments found.", "Koi nivesh nahi mile.", "Инвестиции не найдены.", "هیچ سرمایه گذاری پیدا نشد.", "لم يتم العثور على استثمارات.", "未找到投资记录。"));
         }
     }
 

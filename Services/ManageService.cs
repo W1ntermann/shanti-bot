@@ -10,11 +10,13 @@ public class ManageService : IManageService
 {
     private readonly BotDbContext _context;
     private readonly IAuthService _authService;
+    private readonly ILocalizationService _localizationService;
 
-    public ManageService(BotDbContext context, IAuthService authService)
+    public ManageService(BotDbContext context, IAuthService authService, ILocalizationService localizationService)
     {
         _context = context;
         _authService = authService;
+        _localizationService = localizationService;
     }
 
     public async Task<List<User>> GetUsersAsync()
@@ -50,6 +52,8 @@ public class ManageService : IManageService
             Username = $"temp_{telegramId}_{DateTime.UtcNow.Ticks}",
             IsAuthorized = false,
             IsTemporary = true,
+            PreferredLanguage = BotLanguageCodes.English,
+            Language = _localizationService.NormalizeDisplayName(BotLanguageCodes.English),
             PendingReferralCode = referralCode // ✅ Зберігаємо реферальний код
         };
 
@@ -62,12 +66,20 @@ public class ManageService : IManageService
     public async Task<string> GetUserLanguageAsync(long chatId)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.TelegramId == chatId);
-        return user?.Language ?? "English";
+        return _localizationService.NormalizeDisplayName(user?.PreferredLanguage ?? user?.Language);
     }
 
     public async Task<User?> GetUserByTelegramIdAsync(long telegramId)
     {
-        return await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.TelegramId == telegramId);
+        var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.TelegramId == telegramId);
+        if (user == null)
+        {
+            return null;
+        }
+
+        user.PreferredLanguage = _localizationService.NormalizeCode(user.PreferredLanguage ?? user.Language);
+        user.Language = _localizationService.NormalizeDisplayName(user.PreferredLanguage);
+        return user;
     }
 
     public Task<User> AuthorizeUserAsync(long telegramId)
@@ -81,7 +93,8 @@ public class ManageService : IManageService
         if (user == null)
             return false;
 
-        user.Language = newLanguage;
+        user.PreferredLanguage = _localizationService.NormalizeCode(newLanguage);
+        user.Language = _localizationService.NormalizeDisplayName(user.PreferredLanguage);
         user.UpdatedAt = DateTime.UtcNow;
         
         _context.Users.Update(user);

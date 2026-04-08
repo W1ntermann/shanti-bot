@@ -8,54 +8,55 @@ public class SettingsService
 {
     private readonly ITelegramBotClient _botClient;
     private readonly IManageService _userManageService;
+    private readonly ILocalizationService _localizationService;
 
-    public SettingsService(ITelegramBotClient botClient, IManageService userManageService)
+    public SettingsService(
+        ITelegramBotClient botClient,
+        IManageService userManageService,
+        ILocalizationService localizationService)
     {
         _botClient = botClient;
         _userManageService = userManageService;
+        _localizationService = localizationService;
     }
 
     public async Task ShowSettingsMenuAsync(long chatId, string language, int? messageId = null)
     {
-        bool isEnglish = language == "English";
-
         var buttons = new List<InlineKeyboardButton[]>
         {
             new[]
             {
                 InlineKeyboardButton.WithCallbackData(
-                    isEnglish ? "🌐 Change Language" : "🌐 Bhasha Badalen",
+                    _localizationService.GetText(language, "settings.language"),
                     "change_language")
             },
             new[]
             {
                 InlineKeyboardButton.WithCallbackData(
-                    isEnglish ? "👤 Change Login" : "👤 Login Badalen",
+                    _localizationService.GetText(language, "settings.login"),
                     "change_login")
             },
             new[]
             {
                 InlineKeyboardButton.WithCallbackData(
-                    isEnglish ? "🔒 Change Password" : "🔒 Password Badalen",
+                    _localizationService.GetText(language, "settings.password"),
                     "change_password")
             },
             new[]
             {
                 InlineKeyboardButton.WithCallbackData(
-                    isEnglish ? "💰 Change Wallet Address" : "💰 Wallet Address Badalen",
+                    _localizationService.GetText(language, "settings.wallet"),
                     "change_wallet")
             },
             new[]
             {
                 InlineKeyboardButton.WithCallbackData(
-                    isEnglish ? "🔙 Back to Main Menu" : "🔙 Mukhya Menu",
+                    _localizationService.GetText(language, "settings.backMenu"),
                     "back_to_menu")
             }
         };
 
-        var text = isEnglish
-            ? "⚙️ *SETTINGS MENU*\n\nWhat would you like to configure?"
-            : "⚙️ *SETTINGS MENU*\n\nAap kya configure karna chahenge?";
+        var text = _localizationService.GetText(language, "settings.title");
         var markup = new InlineKeyboardMarkup(buttons);
 
         if (messageId.HasValue)
@@ -75,26 +76,15 @@ public class SettingsService
 
     public async Task ShowLanguageSelectionAsync(long chatId, string currentLanguage, int? messageId = null)
     {
-        bool isEnglish = currentLanguage == "English";
-
-        var buttons = new List<InlineKeyboardButton[]>
-        {
-            new[]
-            {
-                InlineKeyboardButton.WithCallbackData("🇺🇸 English", "set_language_english"),
-                InlineKeyboardButton.WithCallbackData("🇮🇳 Hindi", "set_language_hindi")
-            },
-            new[]
-            {
+        var buttons = BuildLanguageButtons("set_language_");
+        buttons.Add(
+            [
                 InlineKeyboardButton.WithCallbackData(
-                    isEnglish ? "↩️ Back to Settings" : "↩️ Settings Wapas",
+                    _localizationService.GetText(currentLanguage, "settings.backSettings"),
                     "back_to_settings")
-            }
-        };
+            ]);
 
-        var text = isEnglish
-            ? "🌍 *LANGUAGE SELECTION*\n\nChoose your preferred language:"
-            : "🌍 *BHASHA CHUNAV*\n\nApni pasand ki bhasha chunen:";
+        var text = _localizationService.GetText(currentLanguage, "settings.languageTitle");
         var markup = new InlineKeyboardMarkup(buttons);
 
         if (messageId.HasValue)
@@ -114,68 +104,81 @@ public class SettingsService
 
     public async Task AskForNewLoginAsync(long chatId, string currentLanguage)
     {
-        bool isEnglish = currentLanguage == "English";
-
         await _botClient.SendMessage(
             chatId,
-            isEnglish
-                ? "👤 *CHANGE LOGIN*\n\nPlease enter your new username:\n\n📝 *Requirements:*\n• 3-20 characters\n• Letters and numbers only\n• No special characters"
-                : "👤 *LOGIN BADALEN*\n\nKripya apna naya username enter karen:\n\n📝 *Requirements:*\n• 3-20 characters\n• Sirf letters aur numbers\n• No special characters",
+            _localizationService.GetText(currentLanguage, "settings.askLogin"),
             parseMode: ParseMode.Markdown
         );
     }
 
     public async Task AskForNewPasswordAsync(long chatId, string currentLanguage)
     {
-        bool isEnglish = currentLanguage == "English";
-
         await _botClient.SendMessage(
             chatId,
-            isEnglish
-                ? "🔐 *CHANGE PASSWORD*\n\nPlease enter your new password:\n\n🔒 *Security Recommendations:*\n• Minimum 8 characters\n• Mix of letters and numbers\n• Avoid common passwords"
-                : "🔐 *PASSWORD BADALEN*\n\nKripya apna naya password enter karen:\n\n🔒 *Suraksha Salah:*\n• Kam se kam 8 characters\n• Letters aur numbers ka mix\n• Common passwords se bachein",
+            _localizationService.GetText(currentLanguage, "settings.askPassword"),
             parseMode: ParseMode.Markdown
         );
     }
 
     public async Task AskForNewWalletAddressAsync(long chatId, string currentLanguage)
     {
-        bool isEnglish = currentLanguage == "English";
-
         await _botClient.SendMessage(
             chatId,
-            isEnglish
-                ? "💰 *CHANGE WALLET ADDRESS*\n\nPlease enter your new wallet address:\n\n📝 *Requirements:*\n• Valid cryptocurrency wallet address\n• Ensure the address is correct\n• Double-check before submitting"
-                : "💰 *WALLET ADDRESS BADALEN*\n\nKripya apna naya wallet address enter karen:\n\n📝 *Requirements:*\n• Valid cryptocurrency wallet address\n• Address sahi hone ka dhyan rahe\n• Submit karne se pehle double-check karen",
+            _localizationService.GetText(currentLanguage, "settings.askWallet"),
             parseMode: ParseMode.Markdown
         );
     }
 
     public async Task<bool> UpdateUserLanguageAsync(long chatId, string newLanguage)
     {
-        bool isEnglish = newLanguage == "English";
         var success = await _userManageService.UpdateUserLanguageAsync(chatId, newLanguage);
+        var selectedLanguage = _localizationService.GetLanguage(newLanguage);
 
         if (success)
         {
             await _botClient.SendMessage(
                 chatId,
-                isEnglish
-                    ? "✅ *LANGUAGE UPDATED SUCCESSFULLY!*\n\nYour language preference has been changed to English."
-                    : "✅ *BHASHA SAFALTA PURVAK BADALI!*\n\nAapki bhasha Hindi mein badal di gayi hai."
+                _localizationService.GetText(newLanguage, "settings.languageUpdatedSuccess", selectedLanguage.NativeName),
+                parseMode: ParseMode.Markdown
             );
         }
         else
         {
             await _botClient.SendMessage(
                 chatId,
-                isEnglish
-                    ? "❌ *LANGUAGE UPDATE FAILED*\n\nUnable to change language at this time. Please try again later."
-                    : "❌ *BHASHA BADALNE MEIN ASAFALTA*\n\nBhasha badalni sambhav nahi hai. Kripya badme prayas karen."
+                _localizationService.GetText(newLanguage, "settings.languageUpdatedFailed"),
+                parseMode: ParseMode.Markdown
             );
         }
 
         return success;
+    }
+
+    private List<InlineKeyboardButton[]> BuildLanguageButtons(string callbackPrefix)
+    {
+        var buttons = new List<InlineKeyboardButton[]>();
+        var currentRow = new List<InlineKeyboardButton>(2);
+
+        foreach (var language in _localizationService.GetSupportedLanguages())
+        {
+            currentRow.Add(
+                InlineKeyboardButton.WithCallbackData(
+                    $"{language.FlagEmoji} {language.NativeName}",
+                    $"{callbackPrefix}{language.CallbackSuffix}"));
+
+            if (currentRow.Count == 2)
+            {
+                buttons.Add(currentRow.ToArray());
+                currentRow.Clear();
+            }
+        }
+
+        if (currentRow.Count > 0)
+        {
+            buttons.Add(currentRow.ToArray());
+        }
+
+        return buttons;
     }
 
     public async Task<bool> UpdateUserLoginAsync(long chatId, string newLogin)

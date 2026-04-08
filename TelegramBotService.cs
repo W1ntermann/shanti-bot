@@ -2276,7 +2276,7 @@ public class TelegramBotService : IHostedService
                 _logger.LogError(ex, "Error updating wallet address for user {UserId}", message.From.Id);
                 await _botClient.SendMessage(
                     message.Chat.Id,
-                    T(userLanguage,
+                    T(lang,
                         "❌ Error updating wallet address. Please try again later.",
                         "❌ Wallet address update nahi ho paya. Kripya baad mein phir try karein.",
                         "❌ Ошибка обновления адреса кошелька. Попробуйте позже.",
